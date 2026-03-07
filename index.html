@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QUILTA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              terracotta: '#E07A5F',
+              cream: '#F4F1DE',
+              charcoal: '#2C2C2C',
+              sage: '#81B29A',
+              sand: '#F2CC8F',
+              slate: '#3D405B'
+            },
+            fontFamily: {
+              serif: ['Crimson Pro', 'serif'],
+              sans: ['Inter', 'sans-serif'],
+            },
+            keyframes: {
+              'fade-in': {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+            },
+            animation: {
+              'fade-in': 'fade-in 0.3s ease-out',
+            },
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #F4F1DE;
+        color: #2C2C2C;
+        font-family: 'Inter', sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      h1, h2, h3 {
+        font-family: 'Crimson Pro', serif;
+      }
+      /* Quilt-specific text selection */
+      ::selection {
+        background: rgba(224, 122, 95, 0.25);
+        color: #2C2C2C;
+      }
+      ::-moz-selection {
+        background: rgba(224, 122, 95, 0.25);
+        color: #2C2C2C;
+      }
+      /* Smooth transitions for interactive elements */
+      .btn-bounce {
+        transition: transform 0.1s ease;
+      }
+      .btn-bounce:active {
+        transform: scale(0.96);
+      }
+      /* Ensure text selection is possible on touch devices */
+      .select-text {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
+    "mammoth": "https://esm.sh/mammoth@1.8.0",
+    "react-hot-toast": "https://esm.sh/react-hot-toast@2.5.2",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0"
+  }
+}
+</script>
+</head>
+<body class="overflow-x-hidden">
+    <div id="root"></div>
+</body>
+</html>

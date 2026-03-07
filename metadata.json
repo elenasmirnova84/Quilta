@@ -1,0 +1,8 @@
+{
+  "name": "QUILTA - Qualitative Research App",
+  "description": "A tablet-native qualitative research tool for students, featuring sentence-level coding, transcript management, and academic reporting.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
