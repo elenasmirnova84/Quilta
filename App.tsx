@@ -4,6 +4,7 @@ import mammoth from 'mammoth';
 import { Toaster } from 'react-hot-toast';
 import { dbService } from './services/dbService';
 import { transcribeAudio, processDocument, generateReport } from './services/geminiService';
+import { CODE_COLORS } from './constants';
 import Layout from './components/Layout';
 import CodeSelectionModal from './components/CodeSelectionModal';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -63,6 +64,126 @@ const GranularHighlighter: React.FC<{
   }
 
   return <>{parts}</>;
+};
+
+const CodeActionPopover: React.FC<{
+  sourceCode: Code;
+  targetCode: Code;
+  onMerge: () => void;
+  onSubCode: () => void;
+  onCancel: () => void;
+  position: { x: number, y: number };
+  canSubCode: boolean;
+}> = ({ sourceCode, targetCode, onMerge, onSubCode, onCancel, position, canSubCode }) => {
+  return (
+    <div 
+      className="fixed z-[100] bg-white rounded-xl shadow-2xl border border-slate/10 p-2 w-56 animate-in fade-in zoom-in-95 duration-150"
+      style={{ left: position.x, top: position.y }}
+    >
+      <div className="px-3 py-2 border-b border-slate/5 mb-1">
+        <p className="text-[10px] font-bold text-slate/30 uppercase tracking-widest">Action for "{sourceCode.label}"</p>
+      </div>
+      <button 
+        onClick={onMerge}
+        className="w-full text-left px-3 py-2.5 hover:bg-slate/5 rounded-lg flex items-center gap-3 transition-colors group"
+      >
+        <div className="w-8 h-8 rounded-full bg-terracotta/10 flex items-center justify-center text-terracotta group-hover:scale-110 transition-transform">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate leading-none">Merge</p>
+          <p className="text-[9px] text-slate/40 mt-1">Into {targetCode.label}</p>
+        </div>
+      </button>
+      <button 
+        onClick={onSubCode}
+        disabled={!canSubCode}
+        className={`w-full text-left px-3 py-2.5 hover:bg-slate/5 rounded-lg flex items-center gap-3 transition-colors group ${!canSubCode ? 'opacity-30 cursor-not-allowed' : ''}`}
+      >
+        <div className="w-8 h-8 rounded-full bg-sage/10 flex items-center justify-center text-sage group-hover:scale-110 transition-transform">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate leading-none">Make Sub-code</p>
+          <p className="text-[9px] text-slate/40 mt-1">{canSubCode ? `Under ${targetCode.label}` : 'Hierarchy limit reached'}</p>
+        </div>
+      </button>
+      <div className="h-px bg-slate/5 my-1" />
+      <button 
+        onClick={onCancel}
+        className="w-full text-center py-2 text-xs font-bold text-slate/30 hover:text-slate transition-colors"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+};
+
+const QuickCodePopover: React.FC<{
+  text: string;
+  existingCodes: Code[];
+  onConfirm: (label: string, color: string, parentId?: string) => void;
+  onCancel: () => void;
+  position: { x: number, y: number };
+}> = ({ text, existingCodes, onConfirm, onCancel, position }) => {
+  const [label, setLabel] = useState(text.length > 30 ? text.substring(0, 27) + '...' : text);
+  const [color, setColor] = useState(CODE_COLORS[0]);
+  const [parentId, setParentId] = useState<string>('');
+
+  const rootCodes = existingCodes.filter(c => !c.parent_id);
+
+  return (
+    <div 
+      className="fixed z-[100] bg-white rounded-2xl shadow-2xl border border-slate/10 p-6 w-80 animate-in fade-in slide-in-from-top-4 duration-200"
+      style={{ left: Math.min(window.innerWidth - 340, position.x), top: Math.min(window.innerHeight - 400, position.y) }}
+    >
+      <h3 className="text-lg font-bold text-slate mb-4">New Code</h3>
+      <div className="space-y-4">
+        <div>
+          <label className="text-[10px] font-bold text-slate/30 uppercase tracking-widest block mb-1">Code Label</label>
+          <input 
+            autoFocus
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            className="w-full h-11 px-4 rounded-xl border-2 border-slate/5 bg-slate/5 focus:border-terracotta outline-none font-bold text-slate transition-all"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate/30 uppercase tracking-widest block mb-1">Parent (Optional)</label>
+          <select 
+            value={parentId}
+            onChange={e => setParentId(e.target.value)}
+            className="w-full h-11 px-4 rounded-xl border-2 border-slate/5 bg-slate/5 outline-none font-bold text-slate"
+          >
+            <option value="">Root Level</option>
+            {rootCodes.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate/30 uppercase tracking-widest block mb-2">Color</label>
+          <div className="flex flex-wrap gap-2">
+            {CODE_COLORS.map(c => (
+              <button 
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-6 h-6 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 ring-terracotta scale-110' : 'opacity-50 hover:opacity-100'}`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button onClick={onCancel} className="flex-1 py-3 bg-slate/5 text-slate rounded-xl font-bold text-sm">Cancel</button>
+          <button 
+            onClick={() => onConfirm(label, color, parentId || undefined)}
+            className="flex-1 py-3 bg-terracotta text-white rounded-xl font-bold text-sm shadow-lg"
+          >
+            Create & Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // --- View Components ---
@@ -461,6 +582,10 @@ const CodingView: React.FC<{
   const [showHelp, setShowHelp] = useState(false);
   const [activeSegments, setActiveSegments] = useState<CodedSegment[]>(dbService.getCodedSegments(interview.id));
   const [isDraggingOverCode, setIsDraggingOverCode] = useState<string | null>(null);
+  const [isDraggingOverSidebar, setIsDraggingOverSidebar] = useState(false);
+  const [draggedCodeId, setDraggedCodeId] = useState<string | null>(null);
+  const [codeActionMenu, setCodeActionMenu] = useState<{ sourceId: string, targetId: string, x: number, y: number } | null>(null);
+  const [quickCodePopover, setQuickCodePopover] = useState<{ text: string, sentenceIndex: number, start: number, end: number, x: number, y: number } | null>(null);
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
 
   useKeyboardShortcuts({
@@ -534,7 +659,23 @@ const CodingView: React.FC<{
 
   const handleDropOnCode = (e: React.DragEvent, code: Code) => {
     e.preventDefault();
+    e.stopPropagation(); // CRITICAL: Prevent sidebar drop handler from firing
     setIsDraggingOverCode(null);
+    
+    // Workflow 1: CODE -> CODE
+    const sourceCodeId = e.dataTransfer.getData('application/quilta-code');
+    if (sourceCodeId) {
+      if (sourceCodeId === code.id) return;
+      setCodeActionMenu({
+        sourceId: sourceCodeId,
+        targetId: code.id,
+        x: e.clientX,
+        y: e.clientY
+      });
+      return;
+    }
+
+    // Workflow 2A: TEXT SELECTION -> EXISTING CODE (Immediate Assignment)
     const dataStr = e.dataTransfer.getData('application/quilta-selection');
     if (dataStr) {
       try {
@@ -548,13 +689,71 @@ const CodingView: React.FC<{
           end_char: data.end 
         });
         setActiveSegments(dbService.getCodedSegments(interview.id));
-        showToast.success(`Coded: ${code.label}`);
+        showToast.success(`Assigned to: ${code.label}`);
         window.getSelection()?.removeAllRanges();
         setSelectedText("");
       } catch (err) {
         console.error("Drop failed", err);
       }
     }
+  };
+
+  const handleSidebarDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverSidebar(false);
+    
+    // Workflow 2B: TEXT SELECTION -> EMPTY SIDEBAR (New Code Popover)
+    const dataStr = e.dataTransfer.getData('application/quilta-selection');
+    if (dataStr) {
+      try {
+        const data = JSON.parse(dataStr);
+        setQuickCodePopover({
+          ...data,
+          x: e.clientX,
+          y: e.clientY
+        });
+      } catch (err) {
+        console.error("Sidebar drop failed", err);
+      }
+    }
+  };
+
+  const handleMerge = () => {
+    if (!codeActionMenu) return;
+    dbService.mergeCodes(codeActionMenu.sourceId, codeActionMenu.targetId);
+    onCodesUpdated(dbService.getCodes(project.id));
+    setActiveSegments(dbService.getCodedSegments(interview.id));
+    setCodeActionMenu(null);
+    showToast.success('Codes merged');
+  };
+
+  const handleSubCode = () => {
+    if (!codeActionMenu) return;
+    dbService.updateCode(codeActionMenu.sourceId, { parent_id: codeActionMenu.targetId });
+    onCodesUpdated(dbService.getCodes(project.id));
+    setCodeActionMenu(null);
+    showToast.success('Hierarchy updated');
+  };
+
+  const handleQuickCodeConfirm = (label: string, color: string, parentId?: string) => {
+    if (!quickCodePopover) return;
+    const newCode = dbService.createCode(project.id, label, color, undefined, false, parentId);
+    onCodesUpdated(dbService.getCodes(project.id));
+    
+    dbService.saveCodedSegment({
+      interview_id: interview.id,
+      code_id: newCode.id,
+      segment_text: quickCodePopover.text,
+      sentence_index: quickCodePopover.sentenceIndex,
+      start_char: quickCodePopover.start,
+      end_char: quickCodePopover.end
+    });
+    
+    setActiveSegments(dbService.getCodedSegments(interview.id));
+    setQuickCodePopover(null);
+    showToast.success(`Created & Coded: ${label}`);
+    window.getSelection()?.removeAllRanges();
+    setSelectedText("");
   };
 
   const onApply = (code: Code) => {
@@ -595,11 +794,33 @@ const CodingView: React.FC<{
     return (
       <div key={code.id} className="space-y-1">
         <div 
-          onDragOver={(e) => { e.preventDefault(); setIsDraggingOverCode(code.id); }}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/quilta-code', code.id);
+            e.dataTransfer.effectAllowed = 'move';
+            setDraggedCodeId(code.id);
+          }}
+          onDragEnd={() => setDraggedCodeId(null)}
+          onDragOver={(e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); // Prevent sidebar container from highlighting
+            if (draggedCodeId && draggedCodeId !== code.id) {
+              // Prevent dropping parent onto its own descendant
+              const isDescendant = (pid: string, targetId: string): boolean => {
+                const subs = subCodesMap[pid] || [];
+                if (subs.some(s => s.id === targetId)) return true;
+                return subs.some(s => isDescendant(s.id, targetId));
+              };
+              if (isDescendant(draggedCodeId, code.id)) return;
+              setIsDraggingOverCode(code.id); 
+            } else if (!draggedCodeId) {
+              setIsDraggingOverCode(code.id);
+            }
+          }}
           onDragLeave={() => setIsDraggingOverCode(null)}
           onDrop={(e) => handleDropOnCode(e, code)}
           onClick={() => children.length > 0 && toggleExpand(code.id)}
-          className={`group relative p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${isDraggingOverCode === code.id ? 'border-terracotta bg-terracotta/5 scale-[1.02] shadow-lg' : 'border-transparent bg-slate/5 hover:bg-slate/10'} ${level > 0 ? 'ml-6' : ''}`}
+          className={`group relative p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${isDraggingOverCode === code.id ? 'border-terracotta bg-terracotta/5 scale-[1.02] shadow-lg' : 'border-transparent bg-slate/5 hover:bg-slate/10'} ${level > 0 ? 'ml-6' : ''} ${draggedCodeId === code.id ? 'opacity-40 grayscale' : ''}`}
         >
           {children.length > 0 && (
             <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
@@ -683,10 +904,15 @@ const CodingView: React.FC<{
         </div>
 
         {/* Sidebar */}
-        <aside className="w-80 bg-white border-l border-slate/5 flex flex-col shadow-2xl z-40">
+        <aside 
+          onDragOver={(e) => { e.preventDefault(); setIsDraggingOverSidebar(true); }}
+          onDragLeave={() => setIsDraggingOverSidebar(false)}
+          onDrop={handleSidebarDrop}
+          className={`w-80 bg-white border-l border-slate/5 flex flex-col shadow-2xl z-40 transition-colors ${isDraggingOverSidebar ? 'bg-terracotta/5 ring-4 ring-inset ring-terracotta/10' : ''}`}
+        >
           <div className="p-6 border-b border-slate/5 bg-slate/5">
             <h2 className="text-lg font-bold text-slate">Codebook</h2>
-            <p className="text-[10px] text-slate/40 uppercase tracking-widest font-bold">1. Select text <br/> 2. Drag handle to code</p>
+            <p className="text-[10px] text-slate/40 uppercase tracking-widest font-bold">1. Select text <br/> 2. Drag handle to code or sidebar</p>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {rootCodes.length === 0 ? (
@@ -721,6 +947,32 @@ const CodingView: React.FC<{
         onDeleteCode={handleDeleteCode}
         codeUsageCounts={codeUsage}
       />
+      
+      {codeActionMenu && (
+        <CodeActionPopover 
+          sourceCode={codes.find(c => c.id === codeActionMenu.sourceId)!}
+          targetCode={codes.find(c => c.id === codeActionMenu.targetId)!}
+          onMerge={handleMerge}
+          onSubCode={handleSubCode}
+          onCancel={() => setCodeActionMenu(null)}
+          position={{ x: codeActionMenu.x, y: codeActionMenu.y }}
+          canSubCode={
+            !codes.find(c => c.id === codeActionMenu.targetId)?.parent_id && // Target must be root
+            !(subCodesMap[codeActionMenu.sourceId]?.length > 0) // Source must not have children (prevent 3rd level)
+          }
+        />
+      )}
+
+      {quickCodePopover && (
+        <QuickCodePopover 
+          text={quickCodePopover.text}
+          existingCodes={codes}
+          onConfirm={handleQuickCodeConfirm}
+          onCancel={() => setQuickCodePopover(null)}
+          position={{ x: quickCodePopover.x, y: quickCodePopover.y }}
+        />
+      )}
+
       <ConfirmDialog isOpen={showHelp} title="Shortcuts" message="Drag text selection onto codes in the sidebar to assign them | Hierarchical: Create sub-codes in the Manage panel. | ESC: Close" confirmText="OK" onConfirm={() => setShowHelp(false)} onCancel={() => setShowHelp(false)} variant="info" />
     </div>
   );
