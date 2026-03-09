@@ -25,6 +25,7 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
   const [filterCommentStatus, setFilterCommentStatus] = useState<'all' | 'has_comment' | 'no_comment'>('all');
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [editComment, setEditComment] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Get relevant code IDs (this code + optionally sub-codes)
   const relevantCodeIds = useMemo(() => {
@@ -44,7 +45,7 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
     return dbService.getAllCodedSegments().filter(s => 
       interviewIds.has(s.interview_id) && relevantCodeIds.includes(s.code_id)
     );
-  }, [interviews, relevantCodeIds]);
+  }, [interviews, relevantCodeIds, refreshKey]);
 
   // Apply filters
   const filteredSegments = useMemo(() => {
@@ -59,6 +60,7 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
   const handleSaveComment = (segmentId: string) => {
     dbService.updateCodedSegment(segmentId, { comment: editComment });
     setEditingSegmentId(null);
+    setRefreshKey(prev => prev + 1);
     showToast.success('Comment saved');
   };
 
