@@ -287,6 +287,7 @@ export const dbService = {
       id: Math.random().toString(36).substr(2, 9),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      createdBy: dbService.getCurrentUser()?.full_name || 'Unknown'
     };
     set(STORAGE_KEYS.CODED_SEGMENTS, [...segments, newSegment]);
     return newSegment;

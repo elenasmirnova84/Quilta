@@ -51,6 +51,7 @@ export interface CodedSegment {
   comment?: string;    // Memo for this specific assignment
   created_at?: string;
   updated_at?: string;
+  createdBy?: string;
 }
 
 export type AppView = 

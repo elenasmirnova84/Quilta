@@ -68,7 +68,7 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
   };
 
   const handleExportCSV = () => {
-    const headers = ['Code', 'Root Code', 'Document / Interview', 'Excerpt', 'Comment', 'Created At', 'Updated At'];
+    const headers = ['Code', 'Root Code', 'Document / Interview', 'Line Number', 'Excerpt', 'Comment', 'Coded By', 'Created At', 'Updated At'];
     
     const rows = filteredSegments.map(s => {
       const segmentCode = allCodes.find(c => c.id === s.code_id);
@@ -82,8 +82,10 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
         segmentCode?.label || 'Unknown',
         rootCode?.label || 'Unknown',
         interview?.title || 'Unknown',
+        (s.sentence_index + 1).toString(),
         s.segment_text.replace(/"/g, '""'),
         (s.comment || '').replace(/"/g, '""'),
+        s.createdBy || (s as any).created_by || 'Unknown',
         s.created_at || 'N/A',
         s.updated_at || 'N/A'
       ];
@@ -196,14 +198,16 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
             <p className="text-sm">Try adjusting your filters or coding more segments.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate/5 overflow-hidden">
-            <table className="w-full border-collapse text-left">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate/5 overflow-x-auto">
+            <table className="w-full border-collapse text-left min-w-[800px]">
               <thead>
                 <tr className="bg-slate/5 border-b border-slate/5">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-1/4">Document</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-48">Document</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-24 text-center">Line</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-1/3">Excerpt</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-1/3">Memo / Comment</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-24">Actions</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-32">Coded By</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate/40 uppercase tracking-widest w-24 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate/5">
@@ -216,9 +220,6 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
                       <td className="px-6 py-6 align-top">
                         <div className="flex flex-col gap-1">
                           <span className="text-sm font-bold text-slate leading-tight">{interview?.title || 'Unknown'}</span>
-                          <span className="text-[10px] text-slate/30 font-bold uppercase tracking-wider">
-                            Sentence #{s.sentence_index + 1}
-                          </span>
                           {includeSubCodes && segmentCode && segmentCode.id !== code.id && (
                             <div className="flex items-center gap-1.5 mt-2">
                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: segmentCode.color }} />
@@ -226,6 +227,11 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td className="px-6 py-6 align-top text-center">
+                        <span className="text-[10px] text-slate/30 font-bold uppercase tracking-wider">
+                          #{s.sentence_index + 1}
+                        </span>
                       </td>
                       <td className="px-6 py-6 align-top">
                         <div 
@@ -275,6 +281,11 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
                             )}
                           </div>
                         )}
+                      </td>
+                      <td className="px-6 py-6 align-top">
+                        <span className="text-[10px] font-bold text-slate/40 uppercase tracking-wider">
+                          {s.createdBy || (s as any).created_by || 'Unknown'}
+                        </span>
                       </td>
                       <td className="px-6 py-6 align-top text-right">
                         <button 
