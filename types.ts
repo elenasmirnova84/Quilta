@@ -49,6 +49,8 @@ export interface CodedSegment {
   start_char?: number; // Offset within the sentence
   end_char?: number;   // Offset within the sentence
   comment?: string;    // Memo for this specific assignment
+  created_at?: string;
+  updated_at?: string;
 }
 
 export type AppView = 

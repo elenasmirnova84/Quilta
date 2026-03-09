@@ -67,6 +67,45 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
     showToast.success('Comment saved');
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Code', 'Root Code', 'Document / Interview', 'Excerpt', 'Comment', 'Created At', 'Updated At'];
+    
+    const rows = filteredSegments.map(s => {
+      const segmentCode = allCodes.find(c => c.id === s.code_id);
+      const interview = interviews.find(i => i.id === s.interview_id);
+      
+      const rootCode = segmentCode?.parent_id 
+        ? allCodes.find(c => c.id === segmentCode.parent_id) 
+        : segmentCode;
+
+      return [
+        segmentCode?.label || 'Unknown',
+        rootCode?.label || 'Unknown',
+        interview?.title || 'Unknown',
+        s.segment_text.replace(/"/g, '""'),
+        (s.comment || '').replace(/"/g, '""'),
+        s.created_at || 'N/A',
+        s.updated_at || 'N/A'
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${code.label.toLowerCase().replace(/\s+/g, '-')}-export.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast.success('CSV Exported');
+  };
+
   return (
     <div className="flex flex-col h-full bg-cream animate-fade-in">
       {/* Header */}
@@ -90,6 +129,15 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
         </div>
         
         <div className="flex items-center gap-4">
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-slate text-white rounded-xl text-xs font-bold shadow-sm hover:bg-slate/90 transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export CSV
+          </button>
           <div className="flex items-center gap-2 bg-slate/5 p-1 rounded-xl">
             <button 
               onClick={() => setIncludeSubCodes(false)}

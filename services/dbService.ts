@@ -285,6 +285,8 @@ export const dbService = {
     const newSegment: CodedSegment = {
       ...segment,
       id: Math.random().toString(36).substr(2, 9),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     set(STORAGE_KEYS.CODED_SEGMENTS, [...segments, newSegment]);
     return newSegment;
@@ -293,7 +295,11 @@ export const dbService = {
     const segments = get(STORAGE_KEYS.CODED_SEGMENTS, []);
     const index = segments.findIndex(s => s.id === id);
     if (index !== -1) {
-      segments[index] = { ...segments[index], ...updates };
+      segments[index] = { 
+        ...segments[index], 
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
       set(STORAGE_KEYS.CODED_SEGMENTS, segments);
     }
   },
