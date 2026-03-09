@@ -75,10 +75,13 @@ const CodeActionPopover: React.FC<{
   position: { x: number, y: number };
   canSubCode: boolean;
 }> = ({ sourceCode, targetCode, onMerge, onSubCode, onCancel, position, canSubCode }) => {
+  const safeX = Math.min(window.innerWidth - 240, position.x);
+  const safeY = Math.min(window.innerHeight - 200, position.y);
+
   return (
     <div 
       className="fixed z-[100] bg-white rounded-xl shadow-2xl border border-slate/10 p-2 w-56 animate-in fade-in zoom-in-95 duration-150"
-      style={{ left: position.x, top: position.y }}
+      style={{ left: safeX, top: safeY }}
     >
       <div className="px-3 py-2 border-b border-slate/5 mb-1">
         <p className="text-[10px] font-bold text-slate/30 uppercase tracking-widest">Action for "{sourceCode.label}"</p>
@@ -129,20 +132,28 @@ const QuickCodePopover: React.FC<{
   const [label, setLabel] = useState(text.length > 30 ? text.substring(0, 27) + '...' : text);
   const [color, setColor] = useState(CODE_COLORS[0]);
   const [parentId, setParentId] = useState<string>('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
 
   const rootCodes = existingCodes.filter(c => !c.parent_id);
+  const safeX = Math.min(window.innerWidth - 340, position.x);
+  const safeY = Math.min(window.innerHeight - 400, position.y);
 
   return (
     <div 
       className="fixed z-[100] bg-white rounded-2xl shadow-2xl border border-slate/10 p-6 w-80 animate-in fade-in slide-in-from-top-4 duration-200"
-      style={{ left: Math.min(window.innerWidth - 340, position.x), top: Math.min(window.innerHeight - 400, position.y) }}
+      style={{ left: safeX, top: safeY }}
     >
       <h3 className="text-lg font-bold text-slate mb-4">New Code</h3>
       <div className="space-y-4">
         <div>
           <label className="text-[10px] font-bold text-slate/30 uppercase tracking-widest block mb-1">Code Label</label>
           <input 
-            autoFocus
+            ref={inputRef}
             value={label}
             onChange={e => setLabel(e.target.value)}
             className="w-full h-11 px-4 rounded-xl border-2 border-slate/5 bg-slate/5 focus:border-terracotta outline-none font-bold text-slate transition-all"
@@ -161,16 +172,23 @@ const QuickCodePopover: React.FC<{
         </div>
         <div>
           <label className="text-[10px] font-bold text-slate/30 uppercase tracking-widest block mb-2">Color</label>
-          <div className="flex flex-wrap gap-2">
-            {CODE_COLORS.map(c => (
-              <button 
-                key={c}
-                onClick={() => setColor(c)}
-                className={`w-6 h-6 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 ring-terracotta scale-110' : 'opacity-50 hover:opacity-100'}`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
+          {parentId ? (
+            <div className="flex items-center gap-2 p-3 bg-slate/5 rounded-xl border border-slate/5">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: existingCodes.find(c => c.id === parentId)?.color }} />
+              <span className="text-xs font-bold text-slate/40">Color inherited from parent code</span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {CODE_COLORS.map(c => (
+                <button 
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-6 h-6 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 ring-terracotta scale-110' : 'opacity-50 hover:opacity-100'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-2 pt-2">
           <button onClick={onCancel} className="flex-1 py-3 bg-slate/5 text-slate rounded-xl font-bold text-sm">Cancel</button>
@@ -659,11 +677,12 @@ const CodingView: React.FC<{
 
   const handleDropOnCode = (e: React.DragEvent, code: Code) => {
     e.preventDefault();
-    e.stopPropagation(); // CRITICAL: Prevent sidebar drop handler from firing
+    e.stopPropagation();
     setIsDraggingOverCode(null);
     
-    // Workflow 1: CODE -> CODE
     const sourceCodeId = e.dataTransfer.getData('application/quilta-code');
+    const selectionData = e.dataTransfer.getData('application/quilta-selection');
+
     if (sourceCodeId) {
       if (sourceCodeId === code.id) return;
       setCodeActionMenu({
@@ -672,14 +691,9 @@ const CodingView: React.FC<{
         x: e.clientX,
         y: e.clientY
       });
-      return;
-    }
-
-    // Workflow 2A: TEXT SELECTION -> EXISTING CODE (Immediate Assignment)
-    const dataStr = e.dataTransfer.getData('application/quilta-selection');
-    if (dataStr) {
+    } else if (selectionData) {
       try {
-        const data = JSON.parse(dataStr);
+        const data = JSON.parse(selectionData);
         dbService.saveCodedSegment({ 
           interview_id: interview.id, 
           code_id: code.id, 
@@ -702,11 +716,12 @@ const CodingView: React.FC<{
     e.preventDefault();
     setIsDraggingOverSidebar(false);
     
-    // Workflow 2B: TEXT SELECTION -> EMPTY SIDEBAR (New Code Popover)
-    const dataStr = e.dataTransfer.getData('application/quilta-selection');
-    if (dataStr) {
+    const selectionData = e.dataTransfer.getData('application/quilta-selection');
+    const codeId = e.dataTransfer.getData('application/quilta-code');
+
+    if (selectionData) {
       try {
-        const data = JSON.parse(dataStr);
+        const data = JSON.parse(selectionData);
         setQuickCodePopover({
           ...data,
           x: e.clientX,
@@ -715,6 +730,11 @@ const CodingView: React.FC<{
       } catch (err) {
         console.error("Sidebar drop failed", err);
       }
+    } else if (codeId) {
+      // Move to root if dropped on empty sidebar space
+      dbService.updateCode(codeId, { parent_id: undefined });
+      onCodesUpdated(dbService.getCodes(project.id));
+      showToast.success('Moved to root');
     }
   };
 
@@ -802,19 +822,25 @@ const CodingView: React.FC<{
           }}
           onDragEnd={() => setDraggedCodeId(null)}
           onDragOver={(e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); // Prevent sidebar container from highlighting
-            if (draggedCodeId && draggedCodeId !== code.id) {
-              // Prevent dropping parent onto its own descendant
-              const isDescendant = (pid: string, targetId: string): boolean => {
-                const subs = subCodesMap[pid] || [];
-                if (subs.some(s => s.id === targetId)) return true;
-                return subs.some(s => isDescendant(s.id, targetId));
-              };
-              if (isDescendant(draggedCodeId, code.id)) return;
+            const types = e.dataTransfer.types;
+            const isCodeDrag = types.includes('application/quilta-code');
+            const isSelectionDrag = types.includes('application/quilta-selection');
+            
+            if (isCodeDrag || isSelectionDrag) {
+              if (isCodeDrag && draggedCodeId) {
+                if (draggedCodeId === code.id) return;
+                // Prevent dropping parent onto its own descendant
+                const isDescendant = (pid: string, targetId: string): boolean => {
+                  const subs = subCodesMap[pid] || [];
+                  if (subs.some(s => s.id === targetId)) return true;
+                  return subs.some(s => isDescendant(s.id, targetId));
+                };
+                if (isDescendant(draggedCodeId, code.id)) return;
+              }
+              
+              e.preventDefault(); 
+              e.stopPropagation();
               setIsDraggingOverCode(code.id); 
-            } else if (!draggedCodeId) {
-              setIsDraggingOverCode(code.id);
             }
           }}
           onDragLeave={() => setIsDraggingOverCode(null)}
@@ -905,7 +931,13 @@ const CodingView: React.FC<{
 
         {/* Sidebar */}
         <aside 
-          onDragOver={(e) => { e.preventDefault(); setIsDraggingOverSidebar(true); }}
+          onDragOver={(e) => { 
+            const types = e.dataTransfer.types;
+            if (types.includes('application/quilta-selection') || types.includes('application/quilta-code')) {
+              e.preventDefault(); 
+              setIsDraggingOverSidebar(true); 
+            }
+          }}
           onDragLeave={() => setIsDraggingOverSidebar(false)}
           onDrop={handleSidebarDrop}
           className={`w-80 bg-white border-l border-slate/5 flex flex-col shadow-2xl z-40 transition-colors ${isDraggingOverSidebar ? 'bg-terracotta/5 ring-4 ring-inset ring-terracotta/10' : ''}`}

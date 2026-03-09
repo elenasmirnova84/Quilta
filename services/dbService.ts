@@ -123,16 +123,48 @@ export const dbService = {
     set(STORAGE_KEYS.CODED_SEGMENTS, segments.filter((s: CodedSegment) => s.interview_id !== id));
   },
 
+  // Helper: Get root code for any given code ID
+  getRootCode: (codeId: string, codes: Code[]): Code | undefined => {
+    const code = codes.find(c => c.id === codeId);
+    if (!code) return undefined;
+    if (!code.parent_id) return code;
+    return codes.find(c => c.id === code.parent_id);
+  },
+
+  // Helper: Apply inherited colors to a list of codes
+  applyInheritedColors: (codes: Code[]): Code[] => {
+    const rootCodes = codes.filter(c => !c.parent_id);
+    const rootColorMap = new Map(rootCodes.map(c => [c.id, c.color]));
+    
+    return codes.map(c => {
+      if (c.parent_id) {
+        const parentColor = rootColorMap.get(c.parent_id);
+        if (parentColor && c.color !== parentColor) {
+          return { ...c, color: parentColor };
+        }
+      }
+      return c;
+    });
+  },
+
   // Codes
   getCodes: (projectId: string): Code[] => 
     get(STORAGE_KEYS.CODES, []).filter((c: Code) => c.project_id === projectId),
   createCode: (projectId: string, label: string, color: string, description?: string, isInVivo?: boolean, parentId?: string): Code => {
     const codes = get(STORAGE_KEYS.CODES, []);
+    
+    // COLOR INHERITANCE RULE 1: Automatic Inheritance on Creation
+    let finalColor = color;
+    if (parentId) {
+      const parent = codes.find(c => c.id === parentId);
+      if (parent) finalColor = parent.color;
+    }
+
     const newCode: Code = {
       id: Math.random().toString(36).substr(2, 9),
       project_id: projectId,
       label,
-      color,
+      color: finalColor,
       description,
       is_invivo: isInVivo,
       parent_id: parentId,
@@ -145,7 +177,41 @@ export const dbService = {
     const codes = get(STORAGE_KEYS.CODES, []);
     const index = codes.findIndex(c => c.id === id);
     if (index !== -1) {
-      codes[index] = { ...codes[index], ...updates };
+      const currentCode = codes[index];
+      let finalUpdates = { ...updates };
+      
+      // COLOR INHERITANCE RULE 5: Manual Color Editing Restrictions
+      // Determine if the code is/will be a sub-code
+      const nextParentId = updates.hasOwnProperty('parent_id') ? updates.parent_id : currentCode.parent_id;
+      
+      if (nextParentId && updates.color !== undefined) {
+        // Block manual color changes for sub-codes
+        delete finalUpdates.color;
+      }
+
+      // COLOR INHERITANCE RULE 2: Dynamic Color Updates on Reparenting
+      if (updates.hasOwnProperty('parent_id')) {
+        if (updates.parent_id) {
+          // Becoming a sub-code or moving to a different root
+          const newParent = codes.find(c => c.id === updates.parent_id);
+          if (newParent) finalUpdates.color = newParent.color;
+        }
+        // If becoming root (updates.parent_id === undefined), it retains its current 
+        // inherited color as its initial root color (default behavior).
+      }
+
+      codes[index] = { ...codes[index], ...finalUpdates };
+
+      // COLOR INHERITANCE RULE 3: Cascading Root Color Updates
+      // If this is a root code and its color changed, update all children
+      if (!codes[index].parent_id && finalUpdates.color) {
+        for (let i = 0; i < codes.length; i++) {
+          if (codes[i].parent_id === id) {
+            codes[i].color = finalUpdates.color;
+          }
+        }
+      }
+
       set(STORAGE_KEYS.CODES, codes);
     }
   },
@@ -174,19 +240,40 @@ export const dbService = {
     );
     set(STORAGE_KEYS.CODED_SEGMENTS, updatedSegments);
 
-    // 2. Reparent any sub-codes of the source to the target
+    // 2. Handle Target as descendant of Source
+    // If target is a child of source, reattach it to source's parent first
+    let effectiveTargetParentId = targetCode.parent_id;
+    if (effectiveTargetParentId === sourceId) {
+      effectiveTargetParentId = sourceCode.parent_id;
+    }
+
+    // 3. Determine new parent and color for source's children
+    const newParentForChildren = effectiveTargetParentId || targetId;
+    const parentForColor = codes.find(c => c.id === newParentForChildren);
+    const inheritedColor = parentForColor?.color || targetCode.color;
+
+    // 4. Update codes: reparent children and update target if it moved
+    // COLOR INHERITANCE RULE 4: Color Synchronization After Merge or Reparenting
     const updatedCodes = codes.map(c => {
-      if (c.parent_id === sourceId) {
-        // Prevent loop if target was a child of source
-        if (c.id === targetId) return { ...c, parent_id: sourceCode.parent_id };
-        return { ...c, parent_id: targetId };
+      // Update target if it was a child of source
+      if (c.id === targetId && c.parent_id === sourceId) {
+        return { ...c, parent_id: effectiveTargetParentId, color: inheritedColor };
       }
+      
+      // Reparent source's children (excluding the target itself if it was a child)
+      if (c.parent_id === sourceId && c.id !== targetId) {
+        return { ...c, parent_id: newParentForChildren, color: inheritedColor };
+      }
+      
       return c;
     });
     
-    // 3. Delete the source code
+    // 5. Delete the source code
     const finalCodes = updatedCodes.filter(c => c.id !== sourceId);
-    set(STORAGE_KEYS.CODES, finalCodes);
+    
+    // Final sync to ensure all colors are correct across the project
+    const syncedCodes = dbService.applyInheritedColors(finalCodes);
+    set(STORAGE_KEYS.CODES, syncedCodes);
   },
 
   // Coded Segments

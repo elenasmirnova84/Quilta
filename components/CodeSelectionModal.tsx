@@ -198,14 +198,26 @@ const CodeSelectionModal: React.FC<CodeSelectionModalProps> = ({
               </div>
               
               <div className="flex flex-wrap gap-3">
-                {CODE_COLORS.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`w-10 h-10 rounded-full transition-all border-4 ${selectedColor === color ? 'border-white ring-2 ring-terracotta shadow-md' : 'border-transparent opacity-80'}`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+                {selectedParentId ? (
+                  <div className="flex flex-col gap-2 p-4 bg-white rounded-xl border-2 border-slate/5 w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full" style={{ backgroundColor: existingCodes.find(c => c.id === selectedParentId)?.color }} />
+                      <span className="text-sm font-bold text-slate">Color inherited from parent code</span>
+                    </div>
+                    <p className="text-[10px] text-slate/40 leading-tight">
+                      Sub-codes automatically match the color of their root category to maintain visual consistency in your codebook.
+                    </p>
+                  </div>
+                ) : (
+                  CODE_COLORS.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`w-10 h-10 rounded-full transition-all border-4 ${selectedColor === color ? 'border-white ring-2 ring-terracotta shadow-md' : 'border-transparent opacity-80'}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))
+                )}
               </div>
             </div>
           </section>
