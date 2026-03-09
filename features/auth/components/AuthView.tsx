@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { showToast } from '../../../lib/toast';
 
 const AuthView: React.FC = () => {
-  const { login, user } = useAuth();
+  const { login, activeProfile } = useAuth();
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -18,7 +18,7 @@ const AuthView: React.FC = () => {
     showToast.success('Password reset link sent to your email.');
   };
 
-  if (user) {
+  if (activeProfile) {
     return <Navigate to="/projects" replace />;
   }
 

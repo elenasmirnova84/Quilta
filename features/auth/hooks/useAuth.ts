@@ -2,10 +2,10 @@ import { useApp } from '../../../contexts/AppContext';
 import { showToast } from '../../../lib/toast';
 
 export const useAuth = () => {
-  const { login: contextLogin, logout: contextLogout, user } = useApp();
+  const { setActiveProfile, logout: contextLogout, activeProfile } = useApp();
 
-  const login = (email: string) => {
-    contextLogin(email);
+  const login = (profile: any) => {
+    setActiveProfile(profile);
     showToast.success('Welcome back!');
   };
 
@@ -15,7 +15,7 @@ export const useAuth = () => {
   };
 
   return {
-    user,
+    activeProfile,
     login,
     logout
   };

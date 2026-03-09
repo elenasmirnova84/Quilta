@@ -1,11 +1,13 @@
-import { Project, Interview, Code, CodedSegment, Profile, TranscriptSentence } from '../types';
+import { Project, Interview, Code, CodedSegment, TranscriptSentence, LocalProfile } from '../types';
 
 const STORAGE_KEYS = {
   USER: 'quilta_user',
   PROJECTS: 'quilta_projects',
   INTERVIEWS: 'quilta_interviews',
   CODES: 'quilta_codes',
-  CODED_SEGMENTS: 'quilta_coded_segments'
+  CODED_SEGMENTS: 'quilta_coded_segments',
+  PROFILES: 'quilta_profiles',
+  ACTIVE_PROFILE_ID: 'quilta_active_profile_id'
 };
 
 const get = <T,>(key: string, defaultValue: T): T => {
@@ -18,25 +20,39 @@ const set = <T,>(key: string, value: T): void => {
 };
 
 export const dbService = {
-  // Auth
-  getCurrentUser: (): Profile | null => get(STORAGE_KEYS.USER, null),
-  login: (email: string): Profile => {
-    const user = { id: 'u1', email, full_name: 'Research Student' };
-    set(STORAGE_KEYS.USER, user);
-    return user;
+  // Profiles
+  getProfiles: (): LocalProfile[] => get(STORAGE_KEYS.PROFILES, []),
+  getActiveProfile: (): LocalProfile | null => {
+    const profiles = dbService.getProfiles();
+    const activeId = get(STORAGE_KEYS.ACTIVE_PROFILE_ID, null);
+    return profiles.find(p => p.id === activeId) || profiles[0] || null;
   },
-  logout: () => localStorage.removeItem(STORAGE_KEYS.USER),
+  setActiveProfile: (id: string): void => set(STORAGE_KEYS.ACTIVE_PROFILE_ID, id),
+  createProfile: (data: Omit<LocalProfile, 'id'>): LocalProfile => {
+    const profiles = dbService.getProfiles();
+    const newProfile: LocalProfile = {
+      id: Math.random().toString(36).substr(2, 9),
+      ...data
+    };
+    set(STORAGE_KEYS.PROFILES, [...profiles, newProfile]);
+    dbService.setActiveProfile(newProfile.id);
+    return newProfile;
+  },
+
+  logout: () => {
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_PROFILE_ID);
+  },
 
   // Projects
   getProjects: (): Project[] => get(STORAGE_KEYS.PROJECTS, []),
   createProject: (title: string, description: string): Project => {
-    const user = dbService.getCurrentUser();
+    const profile = dbService.getActiveProfile();
     const projects = dbService.getProjects();
     const newProject: Project = {
       id: Math.random().toString(36).substr(2, 9),
       title,
       description,
-      owner_id: user?.id || 'anon',
+      owner_id: profile?.id || 'anon',
       created_at: new Date().toISOString()
     };
     set(STORAGE_KEYS.PROJECTS, [...projects, newProject]);
@@ -168,7 +184,7 @@ export const dbService = {
       description,
       is_invivo: isInVivo,
       parent_id: parentId,
-      created_by: dbService.getCurrentUser()?.id || 'anon'
+      created_by: dbService.getActiveProfile()?.id || 'anon'
     };
     set(STORAGE_KEYS.CODES, [...codes, newCode]);
     return newCode;
@@ -282,12 +298,15 @@ export const dbService = {
   getAllCodedSegments: (): CodedSegment[] => get(STORAGE_KEYS.CODED_SEGMENTS, []),
   saveCodedSegment: (segment: Omit<CodedSegment, 'id'>): CodedSegment => {
     const segments = get(STORAGE_KEYS.CODED_SEGMENTS, []);
+    const profile = dbService.getActiveProfile();
     const newSegment: CodedSegment = {
       ...segment,
       id: Math.random().toString(36).substr(2, 9),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      createdBy: dbService.getCurrentUser()?.full_name || 'Unknown'
+      createdBy: profile?.name || 'Unknown', // Legacy
+      createdByName: profile?.name || 'Unknown',
+      createdByEmail: profile?.email || ''
     };
     set(STORAGE_KEYS.CODED_SEGMENTS, [...segments, newSegment]);
     return newSegment;

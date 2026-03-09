@@ -3,9 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { useApp } from '../../contexts/AppContext';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useApp();
+  const { activeProfile } = useApp();
   
-  if (!user) {
+  if (!activeProfile) {
     return <Navigate to="/" replace />;
   }
   

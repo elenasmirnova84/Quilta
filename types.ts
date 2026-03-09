@@ -1,7 +1,9 @@
-export interface Profile {
+export interface LocalProfile {
   id: string;
+  name: string;
   email: string;
-  full_name: string;
+  institution?: string;
+  researchField?: string;
 }
 
 export interface Project {
@@ -51,7 +53,9 @@ export interface CodedSegment {
   comment?: string;    // Memo for this specific assignment
   created_at?: string;
   updated_at?: string;
-  createdBy?: string;
+  createdBy?: string; // Legacy
+  createdByName?: string;
+  createdByEmail?: string;
 }
 
 export type AppView = 

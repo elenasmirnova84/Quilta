@@ -1,30 +1,25 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Profile } from '../types';
+import { LocalProfile } from '../types';
 import { dbService } from '../services/dbService';
 
 interface AppContextType {
-  user: Profile | null;
-  login: (email: string) => void;
+  activeProfile: LocalProfile | null;
+  setActiveProfile: (profile: LocalProfile | null) => void;
   logout: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<Profile | null>(dbService.getCurrentUser());
-
-  const login = (email: string) => {
-    const profile = dbService.login(email);
-    setUser(profile);
-  };
+  const [activeProfile, setActiveProfile] = useState<LocalProfile | null>(dbService.getActiveProfile());
 
   const logout = () => {
     dbService.logout();
-    setUser(null);
+    setActiveProfile(null);
   };
 
   return (
-    <AppContext.Provider value={{ user, login, logout }}>
+    <AppContext.Provider value={{ activeProfile, setActiveProfile, logout }}>
       {children}
     </AppContext.Provider>
   );

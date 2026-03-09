@@ -1,4 +1,4 @@
-import { AppView, Project, Interview, Code, CodedSegment, Profile, TranscriptSentence } from './types';
+import { AppView, Project, Interview, Code, CodedSegment, TranscriptSentence, LocalProfile } from './types';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import mammoth from 'mammoth';
 import { Toaster } from 'react-hot-toast';
@@ -12,6 +12,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 import { SkeletonCard, ProcessingSpinner } from './components/LoadingStates';
 import { showToast } from './lib/toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import ProfileSelectionDialog from './components/ProfileSelectionDialog';
 
 // --- Internal Helper Components ---
 
@@ -206,68 +207,6 @@ const QuickCodePopover: React.FC<{
 };
 
 // --- View Components ---
-
-const AuthView: React.FC<{ onLogin: (email: string) => void }> = ({ onLogin }) => {
-  const [rememberMe, setRememberMe] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    onLogin(formData.get('email') as string);
-    showToast.success('Welcome back!');
-  };
-
-  const handleForgotPassword = (e: React.MouseEvent) => {
-    e.preventDefault();
-    showToast.success('Password reset link sent to your email.');
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-cream px-6">
-      <div className="w-full max-w-md bg-transparent p-6 animate-fade-in">
-        <div className="mb-12 flex flex-col items-center">
-          <svg viewBox="0 0 100 100" className="w-48 h-48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g transform="translate(50, 48)">
-              <path d="M-25,-15 C-40,-5 -35,25 -5,35 C25,45 45,15 35,-15 C25,-45 -10,-40 -25,-15" stroke="#E07A5F" strokeWidth="3" strokeLinecap="round" opacity="0.9" />
-              <path d="M-15,-25 C-35,-20 -40,10 -20,30 C0,50 35,35 40,5 C45,-25 15,-45 -15,-25" stroke="#81B29A" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
-              <path d="M5,-35 C-25,-35 -45,0 -25,25 C-5,50 40,40 45,10 C50,-20 35,-35 5,-35" stroke="#3D405B" strokeWidth="3" strokeLinecap="round" opacity="0.9" />
-              <path d="M15,20 C25,20 45,40 45,50" stroke="#3D405B" strokeWidth="4" strokeLinecap="round" />
-            </g>
-          </svg>
-          <h1 className="text-6xl font-bold text-slate tracking-tight -mt-6 font-sans text-center">Quilta</h1>
-          <p className="text-sage font-medium tracking-widest text-xl uppercase mt-1 font-sans text-center">QDA for Students</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <input name="email" type="email" required placeholder="Email Address" className="w-full h-14 px-4 rounded-xl border-2 border-slate/10 focus:border-terracotta outline-none transition-all text-lg bg-white/80" />
-            <input name="password" type="password" required placeholder="Password" className="w-full h-14 px-4 rounded-xl border-2 border-slate/10 focus:border-terracotta outline-none transition-all text-lg bg-white/80" />
-          </div>
-
-          <div className="flex items-center justify-between px-1">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                checked={rememberMe} 
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-5 h-5 accent-terracotta cursor-pointer rounded border-slate/10"
-              />
-              <span className="text-slate/60 font-medium select-none group-hover:text-slate transition-colors">Remember me</span>
-            </label>
-            <button 
-              type="button" 
-              onClick={handleForgotPassword}
-              className="text-terracotta font-semibold hover:underline"
-            >
-              Forgot password?
-            </button>
-          </div>
-
-          <button type="submit" className="w-full h-16 bg-slate text-white rounded-2xl font-bold text-xl btn-bounce shadow-xl">Sign In</button>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 const ProjectsView: React.FC<{ 
   projects: Project[], 
@@ -1022,8 +961,8 @@ const CodingView: React.FC<{
 // --- Main App Controller ---
 
 const App: React.FC = () => {
-  const [view, setView] = useState<AppView>('AUTH');
-  const [user, setUser] = useState<Profile | null>(dbService.getCurrentUser());
+  const [view, setView] = useState<AppView>('PROJECTS');
+  const [activeProfile, setActiveProfile] = useState<LocalProfile | null>(dbService.getActiveProfile());
   const [projects, setProjects] = useState<Project[]>(dbService.getProjects());
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null);
@@ -1038,16 +977,23 @@ const App: React.FC = () => {
   const [editBuffer, setEditBuffer] = useState("");
 
   useEffect(() => {
-    if (user) {
+    if (activeProfile) {
       setIsLoading(true);
       setProjects(dbService.getProjects());
       setView('PROJECTS');
       setTimeout(() => setIsLoading(false), 500);
     }
-  }, [user]);
+  }, [activeProfile]);
 
-  const onLogin = (email: string) => setUser(dbService.login(email));
-  const onLogout = () => { dbService.logout(); setUser(null); setView('AUTH'); showToast.success('Logged out'); };
+  const onLogout = () => { 
+    dbService.logout(); 
+    setActiveProfile(null);
+    showToast.success('Logged out'); 
+  };
+
+  const onProfileSelected = (profile: LocalProfile) => {
+    setActiveProfile(profile);
+  };
 
   const onOpenProject = (p: Project) => {
     setCurrentProject(p);
@@ -1077,7 +1023,6 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch (view) {
-      case 'AUTH': return <AuthView onLogin={onLogin} />;
       case 'PROJECTS': return <ProjectsView projects={projects} isLoading={isLoading} onOpen={onOpenProject} onCreate={() => setView('CREATE_PROJECT')} onLogout={onLogout} />;
       case 'CREATE_PROJECT': return <CreateProjectView onBack={() => setView('PROJECTS')} onCreated={(p) => { setProjects([...projects, p]); onOpenProject(p); }} />;
       case 'PROJECT_DETAIL': return currentProject ? (
@@ -1198,7 +1143,11 @@ const App: React.FC = () => {
   return (
     <div className="App">
       <Toaster position="top-right" />
-      {renderView()}
+      {!activeProfile ? (
+        <ProfileSelectionDialog onProfileSelected={onProfileSelected} />
+      ) : (
+        renderView()
+      )}
     </div>
   );
 };

@@ -85,7 +85,7 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
         (s.sentence_index + 1).toString(),
         s.segment_text.replace(/"/g, '""'),
         (s.comment || '').replace(/"/g, '""'),
-        s.createdBy || (s as any).created_by || 'Unknown',
+        s.createdByName || s.createdBy || (s as any).created_by || 'Unknown',
         s.created_at || 'N/A',
         s.updated_at || 'N/A'
       ];
@@ -283,9 +283,14 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
                         )}
                       </td>
                       <td className="px-6 py-6 align-top">
-                        <span className="text-[10px] font-bold text-slate/40 uppercase tracking-wider">
-                          {s.createdBy || (s as any).created_by || 'Unknown'}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-slate/40 uppercase tracking-wider">
+                            {s.createdByName || s.createdBy || (s as any).created_by || 'Unknown'}
+                          </span>
+                          {s.createdByEmail && (
+                            <span className="text-[8px] text-slate/20 font-medium">{s.createdByEmail}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-6 align-top text-right">
                         <button 
