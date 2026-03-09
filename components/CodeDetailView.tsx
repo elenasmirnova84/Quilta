@@ -20,12 +20,12 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
   onBack,
   onNavigateToSource
 }) => {
+  const [segments, setSegments] = useState<CodedSegment[]>(() => dbService.getAllCodedSegments());
   const [includeSubCodes, setIncludeSubCodes] = useState(true);
   const [filterInterviewId, setFilterInterviewId] = useState<string>('all');
   const [filterCommentStatus, setFilterCommentStatus] = useState<'all' | 'has_comment' | 'no_comment'>('all');
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [editComment, setEditComment] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Get relevant code IDs (this code + optionally sub-codes)
   const relevantCodeIds = useMemo(() => {
@@ -36,31 +36,34 @@ const CodeDetailView: React.FC<CodeDetailViewProps> = ({
     return ids;
   }, [code.id, allCodes, includeSubCodes]);
 
-  // Get all segments for these codes in this project
-  const allSegments = useMemo(() => {
-    // We need to fetch all segments for the project
-    // dbService.getAllCodedSegments() returns all segments in LocalStorage
-    // We filter by project (via interview_id) and code_id
+  // Filter segments relevant to this project and selected codes
+  const projectSegments = useMemo(() => {
     const interviewIds = new Set(interviews.map(i => i.id));
-    return dbService.getAllCodedSegments().filter(s => 
+    return segments.filter(s => 
       interviewIds.has(s.interview_id) && relevantCodeIds.includes(s.code_id)
     );
-  }, [interviews, relevantCodeIds, refreshKey]);
+  }, [segments, interviews, relevantCodeIds]);
 
-  // Apply filters
+  // Apply UI filters (interview, comment status)
   const filteredSegments = useMemo(() => {
-    return allSegments.filter(s => {
+    return projectSegments.filter(s => {
       const matchesInterview = filterInterviewId === 'all' || s.interview_id === filterInterviewId;
       const matchesComment = filterCommentStatus === 'all' || 
         (filterCommentStatus === 'has_comment' ? !!s.comment : !s.comment);
       return matchesInterview && matchesComment;
     });
-  }, [allSegments, filterInterviewId, filterCommentStatus]);
+  }, [projectSegments, filterInterviewId, filterCommentStatus]);
 
   const handleSaveComment = (segmentId: string) => {
+    // Persist to DB
     dbService.updateCodedSegment(segmentId, { comment: editComment });
+    
+    // Update local state immediately for instant UI feedback
+    setSegments(prev => prev.map(s => 
+      s.id === segmentId ? { ...s, comment: editComment } : s
+    ));
+    
     setEditingSegmentId(null);
-    setRefreshKey(prev => prev + 1);
     showToast.success('Comment saved');
   };
 
