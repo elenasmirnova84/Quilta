@@ -7,6 +7,7 @@ import { transcribeAudio, processDocument, generateReport } from './services/gem
 import { CODE_COLORS } from './constants';
 import Layout from './components/Layout';
 import CodeSelectionModal from './components/CodeSelectionModal';
+import CodeDetailView from './components/CodeDetailView';
 import ConfirmDialog from './components/ConfirmDialog';
 import { SkeletonCard, ProcessingSpinner } from './components/LoadingStates';
 import { showToast } from './lib/toast';
@@ -589,8 +590,9 @@ const CodingView: React.FC<{
   interview: Interview, 
   codes: Code[], 
   onFinish: () => void,
-  onCodesUpdated: (c: Code[]) => void 
-}> = ({ project, interview, codes, onFinish, onCodesUpdated }) => {
+  onCodesUpdated: (c: Code[]) => void,
+  onOpenDetail: (code: Code) => void
+}> = ({ project, interview, codes, onFinish, onCodesUpdated, onOpenDetail }) => {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [selectedText, setSelectedText] = useState<string>("");
   const [offsets, setOffsets] = useState<{start: number, end: number} | null>(null);
@@ -858,6 +860,13 @@ const CodingView: React.FC<{
           <span className="text-[9px] text-slate/30 font-bold px-1.5 py-0.5 bg-white rounded shadow-sm">
             {codeUsage[code.id] || 0}
           </span>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onOpenDetail(code); }}
+            className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-white rounded-lg text-slate/30 hover:text-terracotta transition-all"
+            title="View excerpts & memos"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+          </button>
         </div>
         {isExpanded && children.map(sub => renderCodeItem(sub, level + 1))}
       </div>
@@ -1020,6 +1029,7 @@ const App: React.FC = () => {
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [codes, setCodes] = useState<Code[]>([]);
+  const [selectedCodeForDetail, setSelectedCodeForDetail] = useState<Code | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
@@ -1148,7 +1158,23 @@ const App: React.FC = () => {
           </div>
         </Layout>
       ) : null;
-      case 'CODING': return currentProject && currentInterview ? <CodingView project={currentProject} interview={currentInterview} codes={codes} onFinish={() => setView('INTERVIEW_DETAIL')} onCodesUpdated={(c) => setCodes(c)} /> : null;
+      case 'CODING': return currentProject && currentInterview ? <CodingView project={currentProject} interview={currentInterview} codes={codes} onFinish={() => setView('INTERVIEW_DETAIL')} onCodesUpdated={(c) => setCodes(c)} onOpenDetail={(code) => { setSelectedCodeForDetail(code); setView('CODE_DETAIL'); }} /> : null;
+      case 'CODE_DETAIL': return currentProject && selectedCodeForDetail ? (
+        <CodeDetailView 
+          project={currentProject}
+          code={selectedCodeForDetail}
+          allCodes={codes}
+          interviews={interviews}
+          onBack={() => setView('CODING')}
+          onNavigateToSource={(interviewId, sentenceIndex) => {
+            const interview = interviews.find(i => i.id === interviewId);
+            if (interview) {
+              setCurrentInterview(interview);
+              setView('CODING');
+            }
+          }}
+        />
+      ) : null;
       case 'EXPORT': return currentProject ? (
         <Layout title="Export Center" onBack={() => setView('PROJECT_DETAIL')}>
           <div className="max-w-5xl mx-auto py-10 animate-fade-in"><p className="text-slate/60 mb-10">Generate thematic analysis and academic reports based on your verbatim coding.</p>

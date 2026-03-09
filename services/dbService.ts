@@ -279,6 +279,7 @@ export const dbService = {
   // Coded Segments
   getCodedSegments: (interviewId: string): CodedSegment[] => 
     get(STORAGE_KEYS.CODED_SEGMENTS, []).filter((s: CodedSegment) => s.interview_id === interviewId),
+  getAllCodedSegments: (): CodedSegment[] => get(STORAGE_KEYS.CODED_SEGMENTS, []),
   saveCodedSegment: (segment: Omit<CodedSegment, 'id'>): CodedSegment => {
     const segments = get(STORAGE_KEYS.CODED_SEGMENTS, []);
     const newSegment: CodedSegment = {
@@ -287,6 +288,14 @@ export const dbService = {
     };
     set(STORAGE_KEYS.CODED_SEGMENTS, [...segments, newSegment]);
     return newSegment;
+  },
+  updateCodedSegment: (id: string, updates: Partial<CodedSegment>): void => {
+    const segments = get(STORAGE_KEYS.CODED_SEGMENTS, []);
+    const index = segments.findIndex(s => s.id === id);
+    if (index !== -1) {
+      segments[index] = { ...segments[index], ...updates };
+      set(STORAGE_KEYS.CODED_SEGMENTS, segments);
+    }
   },
   deleteCodedSegment: (id: string): void => {
     const segments = get(STORAGE_KEYS.CODED_SEGMENTS, []);

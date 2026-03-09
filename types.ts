@@ -48,6 +48,7 @@ export interface CodedSegment {
   sentence_index: number;
   start_char?: number; // Offset within the sentence
   end_char?: number;   // Offset within the sentence
+  comment?: string;    // Memo for this specific assignment
 }
 
 export type AppView = 
@@ -59,4 +60,5 @@ export type AppView =
   | 'RECORD_INTERVIEW' 
   | 'INTERVIEW_DETAIL' 
   | 'CODING' 
+  | 'CODE_DETAIL'
   | 'EXPORT';
