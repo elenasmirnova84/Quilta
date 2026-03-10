@@ -38,6 +38,14 @@ export const dbService = {
     dbService.setActiveProfile(newProfile.id);
     return newProfile;
   },
+  updateProfile: (profile: LocalProfile): void => {
+    const profiles = dbService.getProfiles();
+    const index = profiles.findIndex(p => p.id === profile.id);
+    if (index !== -1) {
+      profiles[index] = profile;
+      set(STORAGE_KEYS.PROFILES, profiles);
+    }
+  },
 
   logout: () => {
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_PROFILE_ID);

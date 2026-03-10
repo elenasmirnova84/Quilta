@@ -6,6 +6,8 @@ import { dbService } from './services/dbService';
 import { transcribeAudio, processDocument, generateReport } from './services/geminiService';
 import { CODE_COLORS } from './constants';
 import Layout from './components/Layout';
+import { DashboardView } from './components/DashboardView';
+import { ProfileView } from './components/ProfileView';
 import CodeSelectionModal from './components/CodeSelectionModal';
 import CodeDetailView from './components/CodeDetailView';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -980,7 +982,7 @@ const App: React.FC = () => {
     if (activeProfile) {
       setIsLoading(true);
       setProjects(dbService.getProjects());
-      setView('PROJECTS');
+      setView('DASHBOARD');
       setTimeout(() => setIsLoading(false), 500);
     }
   }, [activeProfile]);
@@ -1023,6 +1025,8 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch (view) {
+      case 'DASHBOARD': return <Layout title="Dashboard"><DashboardView projects={projects} profile={activeProfile} onOpenProject={onOpenProject} onCreateProject={() => setView('CREATE_PROJECT')} onOpenProfile={() => setView('PROFILE')} /></Layout>;
+      case 'PROFILE': return <Layout title="Profile" onBack={() => setView('DASHBOARD')}><ProfileView profile={activeProfile} onUpdateProfile={(p) => setActiveProfile(p)} /></Layout>;
       case 'PROJECTS': return <ProjectsView projects={projects} isLoading={isLoading} onOpen={onOpenProject} onCreate={() => setView('CREATE_PROJECT')} onLogout={onLogout} />;
       case 'CREATE_PROJECT': return <CreateProjectView onBack={() => setView('PROJECTS')} onCreated={(p) => { setProjects([...projects, p]); onOpenProject(p); }} />;
       case 'PROJECT_DETAIL': return currentProject ? (

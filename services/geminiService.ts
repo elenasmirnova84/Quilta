@@ -1,9 +1,19 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Use import.meta.env for Vite environment variables as requested
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey });
+// Lazy initialization of GoogleGenAI to prevent crash on startup if API key is missing
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!aiInstance) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API Key is not set. Please set VITE_GEMINI_API_KEY in your environment.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
 
 const SYSTEM_PROMPT = `You are a professional multilingual qualitative research assistant. 
 Your task is to transcribe content EXACTLY as it is spoken and IDENTIFY SPEAKERS.
@@ -44,7 +54,7 @@ export const transcribeAudio = async (
       
     const hintInstruction = speakerHints ? `\n\nSPEAKER HINTS: Use these identities for mapping: ${speakerHints}` : "";
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       // Using parts array directly for multi-part input as per guidelines
       contents: {
@@ -85,7 +95,7 @@ export const processDocument = async (
       parts.push({ text: `${SYSTEM_PROMPT}${hintInstruction}\n\nSegment this text verbatim and identify speakers. Return a complete, valid JSON array of speaker/text objects:\n\n${payload.text}` });
     }
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       contents: { parts },
       config: {
@@ -114,7 +124,7 @@ export const generateReport = async (
   ).join('\n\n');
   
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       contents: `You are a researcher. Write a thematic synthesis for "${projectTitle}".
       Data:

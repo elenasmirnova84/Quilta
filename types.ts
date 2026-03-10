@@ -61,6 +61,8 @@ export interface CodedSegment {
 export type AppView = 
   | 'AUTH' 
   | 'PROJECTS' 
+  | 'DASHBOARD'
+  | 'PROFILE'
   | 'CREATE_PROJECT' 
   | 'EDIT_PROJECT'
   | 'PROJECT_DETAIL' 
