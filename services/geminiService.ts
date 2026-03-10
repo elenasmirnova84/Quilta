@@ -1,8 +1,9 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Always initialize GoogleGenAI with the apiKey property from process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Use import.meta.env for Vite environment variables as requested
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 const SYSTEM_PROMPT = `You are a professional multilingual qualitative research assistant. 
 Your task is to transcribe content EXACTLY as it is spoken and IDENTIFY SPEAKERS.
@@ -44,7 +45,7 @@ export const transcribeAudio = async (
     const hintInstruction = speakerHints ? `\n\nSPEAKER HINTS: Use these identities for mapping: ${speakerHints}` : "";
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       // Using parts array directly for multi-part input as per guidelines
       contents: {
         parts: [
@@ -85,7 +86,7 @@ export const processDocument = async (
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: { parts },
       config: {
         responseMimeType: "application/json",
@@ -114,7 +115,7 @@ export const generateReport = async (
   
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: `You are a researcher. Write a thematic synthesis for "${projectTitle}".
       Data:
       ${context}
