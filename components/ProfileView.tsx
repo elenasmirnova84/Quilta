@@ -10,6 +10,10 @@ export const ProfileView: React.FC<{
   const [name, setName] = useState(profile?.name || '');
   const [email, setEmail] = useState(profile?.email || '');
   const [institution, setInstitution] = useState(profile?.institution || '');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +22,31 @@ export const ProfileView: React.FC<{
     dbService.updateProfile(updated);
     onUpdateProfile(updated);
     showToast.success('Profile updated successfully');
+  };
+
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    if (profile.password && currentPassword !== profile.password) {
+      showToast.error('Current password incorrect');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast.error('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 4) {
+      showToast.error('Password too short');
+      return;
+    }
+    const updated = { ...profile, password: newPassword };
+    dbService.updateProfile(updated);
+    onUpdateProfile(updated);
+    showToast.success('Password updated successfully');
+    setShowPasswordChange(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -42,7 +71,30 @@ export const ProfileView: React.FC<{
 
       <div className="mt-12 bg-white p-8 rounded-2xl border border-slate/5 shadow-sm">
         <h2 className="text-xl font-bold text-slate mb-6">Security</h2>
-        <button className="text-terracotta font-bold hover:underline">Change Password</button>
+        {!showPasswordChange ? (
+          <button onClick={() => setShowPasswordChange(true)} className="text-terracotta font-bold hover:underline">Change Password</button>
+        ) : (
+          <form onSubmit={handlePasswordChange} className="space-y-4 animate-fade-in">
+            {profile?.password && (
+              <div>
+                <label className="block text-[10px] font-bold text-slate/40 uppercase tracking-widest mb-2">Current Password</label>
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full h-12 px-4 rounded-xl border-2 border-slate/5 bg-slate/5 font-bold text-slate outline-none focus:border-terracotta" />
+              </div>
+            )}
+            <div>
+              <label className="block text-[10px] font-bold text-slate/40 uppercase tracking-widest mb-2">New Password</label>
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full h-12 px-4 rounded-xl border-2 border-slate/5 bg-slate/5 font-bold text-slate outline-none focus:border-terracotta" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate/40 uppercase tracking-widest mb-2">Confirm New Password</label>
+              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full h-12 px-4 rounded-xl border-2 border-slate/5 bg-slate/5 font-bold text-slate outline-none focus:border-terracotta" />
+            </div>
+            <div className="flex gap-4 pt-2">
+              <button type="button" onClick={() => setShowPasswordChange(false)} className="flex-1 py-3 bg-slate/5 text-slate rounded-xl font-bold">Cancel</button>
+              <button type="submit" className="flex-1 py-3 bg-terracotta text-white rounded-xl font-bold shadow-lg">Update Password</button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

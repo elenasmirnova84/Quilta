@@ -53,7 +53,7 @@ export const dbService = {
 
   // Projects
   getProjects: (): Project[] => get(STORAGE_KEYS.PROJECTS, []),
-  createProject: (title: string, description: string): Project => {
+  createProject: (title: string, description: string, tags: string[] = []): Project => {
     const profile = dbService.getActiveProfile();
     const projects = dbService.getProjects();
     const newProject: Project = {
@@ -61,19 +61,29 @@ export const dbService = {
       title,
       description,
       owner_id: profile?.id || 'anon',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      tags,
+      is_archived: false
     };
     set(STORAGE_KEYS.PROJECTS, [...projects, newProject]);
     return newProject;
   },
-  updateProject: (id: string, title: string, description: string): Project => {
+  updateProject: (id: string, title: string, description: string, tags: string[]): Project => {
     const projects = dbService.getProjects();
     const index = projects.findIndex(p => p.id === id);
     if (index === -1) throw new Error("Project not found");
-    const updatedProject = { ...projects[index], title, description };
+    const updatedProject = { ...projects[index], title, description, tags };
     projects[index] = updatedProject;
     set(STORAGE_KEYS.PROJECTS, projects);
     return updatedProject;
+  },
+  archiveProject: (id: string, is_archived: boolean): void => {
+    const projects = dbService.getProjects();
+    const index = projects.findIndex(p => p.id === id);
+    if (index !== -1) {
+      projects[index] = { ...projects[index], is_archived };
+      set(STORAGE_KEYS.PROJECTS, projects);
+    }
   },
 
   // Interviews

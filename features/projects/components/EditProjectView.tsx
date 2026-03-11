@@ -14,7 +14,8 @@ const EditProjectView: React.FC = () => {
     e.preventDefault();
     if (!project) return;
     const fd = new FormData(e.currentTarget);
-    updateProject(project.id, fd.get('title') as string, fd.get('desc') as string);
+    const tags = (fd.get('tags') as string).split(',').map(t => t.trim()).filter(t => t !== '');
+    updateProject(project.id, fd.get('title') as string, fd.get('desc') as string, tags);
     navigate(`/projects/${project.id}`);
   };
 
@@ -31,6 +32,10 @@ const EditProjectView: React.FC = () => {
           <div>
             <label className="block text-slate font-bold mb-2 uppercase tracking-widest text-xs">Description</label>
             <textarea name="desc" defaultValue={project.description} rows={4} className="w-full p-6 rounded-2xl border-2 border-slate/10 outline-none text-lg resize-none focus:border-terracotta transition-colors" />
+          </div>
+          <div>
+            <label className="block text-slate font-bold mb-2 uppercase tracking-widest text-xs">Tags (comma separated)</label>
+            <input name="tags" defaultValue={project.tags?.join(', ')} className="w-full h-14 px-6 rounded-2xl border-2 border-slate/10 outline-none text-xl focus:border-terracotta transition-colors" />
           </div>
           <button type="submit" className="w-full h-16 bg-terracotta text-white rounded-2xl font-bold text-xl btn-bounce shadow-lg">Save Changes</button>
         </form>

@@ -5,6 +5,7 @@ import { AppView } from '../types';
 interface LayoutProps {
   children: React.ReactNode;
   onBack?: () => void;
+  onLogoClick?: () => void;
   title: string;
   actions?: React.ReactNode;
 }
@@ -20,12 +21,15 @@ const LogoIconSmall: React.FC = () => (
   </svg>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, onBack, title, actions }) => {
+const Layout: React.FC<LayoutProps> = ({ children, onBack, onLogoClick, title, actions }) => {
   return (
     <div className="min-h-screen flex flex-col bg-cream text-charcoal">
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-terracotta/10 px-6 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 pr-4 border-r border-slate/10">
+          <div 
+            onClick={onLogoClick}
+            className={`flex items-center gap-3 pr-4 border-r border-slate/10 ${onLogoClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+          >
             <LogoIconSmall />
             <span className="font-bold text-slate hidden lg:block uppercase tracking-tighter text-xl">Quilta</span>
           </div>

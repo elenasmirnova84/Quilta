@@ -18,15 +18,15 @@ export const useProjects = () => {
     setTimeout(() => setIsLoading(false), 300);
   };
 
-  const createProject = (title: string, description: string) => {
-    const project = dbService.createProject(title, description);
+  const createProject = (title: string, description: string, tags: string[] = []) => {
+    const project = dbService.createProject(title, description, tags);
     setProjects(prev => [...prev, project]);
     showToast.success('Project created successfully!');
     return project;
   };
 
-  const updateProject = (id: string, title: string, description: string) => {
-    const updated = dbService.updateProject(id, title, description);
+  const updateProject = (id: string, title: string, description: string, tags: string[]) => {
+    const updated = dbService.updateProject(id, title, description, tags);
     setProjects(prev => prev.map(p => p.id === id ? updated : p));
     showToast.success('Project updated');
     return updated;

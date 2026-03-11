@@ -4,6 +4,7 @@ export interface LocalProfile {
   email: string;
   institution?: string;
   researchField?: string;
+  password?: string;
 }
 
 export interface Project {
@@ -12,6 +13,8 @@ export interface Project {
   description: string;
   owner_id: string;
   created_at: string;
+  tags?: string[];
+  is_archived?: boolean;
 }
 
 export interface TranscriptSentence {

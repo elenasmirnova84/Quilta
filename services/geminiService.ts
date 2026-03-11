@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 
 // Lazy initialization of GoogleGenAI to prevent crash on startup if API key is missing
 let aiInstance: GoogleGenAI | null = null;
@@ -48,12 +48,14 @@ export const transcribeAudio = async (
   speakerHints: string = ""
 ): Promise<{speaker: string, text: string}[]> => {
   try {
+    console.log("Transcribing audio, mimeType:", mimeType);
     const languageInstruction = languageLabel === "Auto-Detect" 
       ? "Automatically detect the language used in this audio." 
       : `The speaker is using ${languageLabel}.`;
       
     const hintInstruction = speakerHints ? `\n\nSPEAKER HINTS: Use these identities for mapping: ${speakerHints}` : "";
 
+    console.log("Calling Gemini API for transcription...");
     const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       // Using parts array directly for multi-part input as per guidelines
@@ -66,11 +68,12 @@ export const transcribeAudio = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: SENTENCE_SCHEMA,
-        thinkingConfig: { thinkingBudget: 4000 },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
         maxOutputTokens: 8192
       }
     });
 
+    console.log("Gemini API response received.");
     // Access .text property directly (not as a method)
     const text = response.text || '[]';
     return JSON.parse(text);
@@ -85,6 +88,7 @@ export const processDocument = async (
   speakerHints: string = ""
 ): Promise<{speaker: string, text: string}[]> => {
   try {
+    console.log("Processing document, payload keys:", Object.keys(payload));
     const parts: any[] = [];
     const hintInstruction = speakerHints ? `\n\nSPEAKER HINTS: Use these identities for mapping: ${speakerHints}` : "";
     
@@ -95,17 +99,19 @@ export const processDocument = async (
       parts.push({ text: `${SYSTEM_PROMPT}${hintInstruction}\n\nSegment this text verbatim and identify speakers. Return a complete, valid JSON array of speaker/text objects:\n\n${payload.text}` });
     }
 
+    console.log("Calling Gemini API for document processing...");
     const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       contents: { parts },
       config: {
         responseMimeType: "application/json",
         responseSchema: SENTENCE_SCHEMA,
-        thinkingConfig: { thinkingBudget: 4000 },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
         maxOutputTokens: 8192
       }
     });
 
+    console.log("Gemini API response received.");
     // Access .text property directly
     const text = response.text || '[]';
     return JSON.parse(text);
@@ -132,7 +138,7 @@ export const generateReport = async (
       
       Structure: Intro, Findings (citing quotes verbatim and mentioning speaker patterns if relevant), Conclusion.`,
       config: {
-        thinkingConfig: { thinkingBudget: 2000 }
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
       }
     });
     // Access .text property directly

@@ -215,8 +215,12 @@ const ProjectsView: React.FC<{
   isLoading: boolean, 
   onOpen: (p: Project) => void, 
   onCreate: () => void, 
-  onLogout: () => void 
-}> = ({ projects, isLoading, onOpen, onCreate, onLogout }) => {
+  onLogout: () => void,
+  onBack?: () => void
+}> = ({ projects, isLoading, onOpen, onCreate, onLogout, onBack }) => {
+  const [showArchived, setShowArchived] = useState(false);
+  const filteredProjects = showArchived ? projects : projects.filter(p => !p.is_archived);
+  
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(undefined, {
       year: 'numeric',
@@ -228,12 +232,18 @@ const ProjectsView: React.FC<{
   return (
     <Layout 
       title="My Projects" 
+      onBack={onBack}
       actions={
-        <button onClick={onLogout} className="p-2 hover:bg-red-50 text-slate/60 hover:text-red-500 rounded-full transition-colors" title="Logout">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowArchived(!showArchived)} className="px-4 py-2 bg-slate/5 text-slate/60 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-slate/10">
+            {showArchived ? 'Hide Archived' : 'Show Archived'}
+          </button>
+          <button onClick={onLogout} className="p-2 hover:bg-red-50 text-slate/60 hover:text-red-500 rounded-full transition-colors" title="Logout">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       }
     >
       <div className="relative pb-24 animate-fade-in">
@@ -243,7 +253,7 @@ const ProjectsView: React.FC<{
             <SkeletonCard />
             <SkeletonCard />
           </div>
-        ) : projects.length === 0 ? (
+        ) : filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <h2 className="text-3xl font-bold text-slate mb-2">No projects yet</h2>
             <p className="text-slate/40 text-lg mb-8">Create your first research project to begin.</p>
@@ -251,29 +261,37 @@ const ProjectsView: React.FC<{
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map(p => {
+            {filteredProjects.map(p => {
               const interviewCount = dbService.getInterviews(p.id).length;
               return (
                 <div 
                   key={p.id} 
-                  onClick={() => onOpen(p)} 
-                  className="bg-white p-6 rounded-xl border border-slate/5 hover:border-terracotta/30 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+                  className={`bg-white p-6 rounded-xl border border-slate/5 hover:border-terracotta/30 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between ${p.is_archived ? 'opacity-60' : ''}`}
                 >
-                  <div>
+                  <div onClick={() => onOpen(p)}>
                     <div className="flex justify-between items-start gap-2 mb-2">
                       <h3 className="text-xl font-bold text-charcoal leading-tight line-clamp-1">{p.title}</h3>
                       <span className="shrink-0 px-2 py-1 bg-sage/10 text-sage text-[10px] font-bold uppercase tracking-wider rounded-md">
                         {interviewCount} {interviewCount === 1 ? 'source' : 'sources'}
                       </span>
                     </div>
-                    <p className="text-charcoal/60 text-sm line-clamp-2">
+                    <p className="text-charcoal/60 text-sm line-clamp-2 mb-2">
                       {p.description || "No description provided."}
                     </p>
+                    <div className="flex flex-wrap gap-1">
+                      {p.tags?.map(t => <span key={t} className="px-2 py-0.5 bg-slate/5 text-slate/50 text-[10px] font-bold uppercase rounded-md">{t}</span>)}
+                    </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-slate/5">
+                  <div className="mt-4 pt-4 border-t border-slate/5 flex justify-between items-center">
                     <span className="text-slate/30 text-[10px] uppercase tracking-widest font-bold">
                       {formatDate(p.created_at)}
                     </span>
+                    <button 
+                      onClick={() => { dbService.archiveProject(p.id, !p.is_archived); showToast.success(p.is_archived ? 'Project unarchived' : 'Project archived'); }}
+                      className="text-[10px] font-bold uppercase text-slate/40 hover:text-terracotta"
+                    >
+                      {p.is_archived ? 'Unarchive' : 'Archive'}
+                    </button>
                   </div>
                 </div>
               );
@@ -293,16 +311,17 @@ const ProjectsView: React.FC<{
   );
 };
 
-const CreateProjectView: React.FC<{ onBack: () => void, onCreated: (p: Project) => void }> = ({ onBack, onCreated }) => {
+const CreateProjectView: React.FC<{ onBack: () => void, onCreated: (p: Project) => void, onLogoClick?: () => void }> = ({ onBack, onCreated, onLogoClick }) => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const p = dbService.createProject(fd.get('title') as string, fd.get('desc') as string);
+    const tags = (fd.get('tags') as string).split(',').map(t => t.trim()).filter(t => t !== '');
+    const p = dbService.createProject(fd.get('title') as string, fd.get('desc') as string, tags);
     showToast.success('Project created!');
     onCreated(p);
   };
   return (
-    <Layout title="New Project" onBack={onBack}>
+    <Layout title="New Project" onBack={onBack} onLogoClick={onLogoClick}>
       <div className="max-w-2xl bg-white p-10 rounded-3xl shadow-lg mx-auto animate-fade-in">
         <form className="space-y-8" onSubmit={handleSubmit}>
           <div>
@@ -312,6 +331,10 @@ const CreateProjectView: React.FC<{ onBack: () => void, onCreated: (p: Project) 
           <div>
             <label className="block text-slate font-bold mb-2 uppercase tracking-widest text-xs">Description</label>
             <textarea name="desc" rows={4} placeholder="Describe the research goals..." className="w-full p-6 rounded-2xl border-2 border-slate/10 outline-none text-lg resize-none focus:border-terracotta transition-colors" />
+          </div>
+          <div>
+            <label className="block text-slate font-bold mb-2 uppercase tracking-widest text-xs">Tags (comma separated)</label>
+            <input name="tags" placeholder="e.g., interviews, surveys" className="w-full h-14 px-6 rounded-2xl border-2 border-slate/10 outline-none text-xl focus:border-terracotta transition-colors" />
           </div>
           <button type="submit" className="w-full h-16 bg-terracotta text-white rounded-2xl font-bold text-xl btn-bounce shadow-lg">Create Project</button>
         </form>
@@ -323,8 +346,9 @@ const CreateProjectView: React.FC<{ onBack: () => void, onCreated: (p: Project) 
 const RecordInterviewView: React.FC<{ 
   project: Project, 
   onBack: () => void, 
-  onInterviewCreated: (i: Interview) => void 
-}> = ({ project, onBack, onInterviewCreated }) => {
+  onInterviewCreated: (i: Interview) => void,
+  onLogoClick?: () => void
+}> = ({ project, onBack, onInterviewCreated, onLogoClick }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
@@ -450,7 +474,7 @@ const RecordInterviewView: React.FC<{
   };
 
   return (
-    <Layout title="Import Data" onBack={onBack}>
+    <Layout title="Import Data" onBack={onBack} onLogoClick={onLogoClick}>
       <div className="max-w-4xl mx-auto animate-fade-in">
         {isProcessing ? (
           <div className="space-y-8">
@@ -1023,14 +1047,78 @@ const App: React.FC = () => {
     }
   };
 
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportText, setReportText] = useState('');
+
+  useEffect(() => {
+    setReportText('');
+  }, [currentProject?.id]);
+
+  const handleGenerateReport = async () => {
+    if (!currentProject) return;
+    
+    const projectCodes = dbService.getCodes(currentProject.id);
+    const allSegments = dbService.getAllCodedSegments();
+    
+    const reportData = projectCodes.map(code => {
+      const segments = allSegments.filter(s => s.code_id === code.id);
+      return {
+        label: code.label,
+        segments: segments.map(s => ({
+          text: s.segment_text,
+          ref: s.sentence_index
+        }))
+      };
+    }).filter(c => c.segments.length > 0);
+
+    if (reportData.length === 0) {
+      showToast.error('No coded segments found. Please code some data first.');
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    try {
+      const report = await generateReport(currentProject.title, reportData);
+      setReportText(report);
+      showToast.success('Synthesis generated!');
+    } catch (err) {
+      showToast.error('Failed to generate synthesis');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const downloadDoc = () => {
+    if (!reportText || !currentProject) return;
+    const content = `
+PROJECT: ${currentProject.title}
+DATE: ${new Date().toLocaleDateString()}
+
+ACADEMIC SYNTHESIS
+==================
+
+${reportText}
+    `;
+    const blob = new Blob([content], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentProject.title.replace(/\s+/g, '_')}_Report.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast.success('Download started');
+  };
+
   const renderView = () => {
     switch (view) {
-      case 'DASHBOARD': return <Layout title="Dashboard"><DashboardView projects={projects} profile={activeProfile} onOpenProject={onOpenProject} onCreateProject={() => setView('CREATE_PROJECT')} onOpenProfile={() => setView('PROFILE')} /></Layout>;
-      case 'PROFILE': return <Layout title="Profile" onBack={() => setView('DASHBOARD')}><ProfileView profile={activeProfile} onUpdateProfile={(p) => setActiveProfile(p)} /></Layout>;
-      case 'PROJECTS': return <ProjectsView projects={projects} isLoading={isLoading} onOpen={onOpenProject} onCreate={() => setView('CREATE_PROJECT')} onLogout={onLogout} />;
-      case 'CREATE_PROJECT': return <CreateProjectView onBack={() => setView('PROJECTS')} onCreated={(p) => { setProjects([...projects, p]); onOpenProject(p); }} />;
+      case 'DASHBOARD': return <Layout title="Dashboard" onLogoClick={() => setView('DASHBOARD')}><DashboardView projects={projects} profile={activeProfile} onOpenProject={onOpenProject} onCreateProject={() => setView('CREATE_PROJECT')} onOpenProfile={() => setView('PROFILE')} /></Layout>;
+      case 'PROFILE': return <Layout title="Profile" onBack={() => setView('DASHBOARD')} onLogoClick={() => setView('DASHBOARD')}><ProfileView profile={activeProfile} onUpdateProfile={(p) => setActiveProfile(p)} /></Layout>;
+      case 'PROJECTS': return <ProjectsView projects={projects} isLoading={isLoading} onOpen={onOpenProject} onCreate={() => setView('CREATE_PROJECT')} onLogout={onLogout} onBack={() => setView('DASHBOARD')} onLogoClick={() => setView('DASHBOARD')} />;
+      case 'CREATE_PROJECT': return <CreateProjectView onBack={() => setView('PROJECTS')} onCreated={(p) => { setProjects([...projects, p]); onOpenProject(p); }} onLogoClick={() => setView('DASHBOARD')} />;
       case 'PROJECT_DETAIL': return currentProject ? (
-        <Layout title={currentProject.title} onBack={() => setView('PROJECTS')} 
+        <Layout title={currentProject.title} onBack={() => setView('PROJECTS')} onLogoClick={() => setView('DASHBOARD')}
           actions={<div className="flex gap-2">
             <button onClick={() => setView('EXPORT')} className="px-4 py-2 bg-sage text-white rounded-xl font-bold text-sm shadow-sm hover:bg-sage/90">Export</button>
           </div>}
@@ -1053,9 +1141,9 @@ const App: React.FC = () => {
           </div>
         </Layout>
       ) : null;
-      case 'RECORD_INTERVIEW': return currentProject ? <RecordInterviewView project={currentProject} onBack={() => setView('PROJECT_DETAIL')} onInterviewCreated={(i) => { setInterviews([...interviews, i]); setCurrentInterview(i); setView('INTERVIEW_DETAIL'); }} /> : null;
+      case 'RECORD_INTERVIEW': return currentProject ? <RecordInterviewView project={currentProject} onBack={() => setView('PROJECT_DETAIL')} onInterviewCreated={(i) => { setInterviews([...interviews, i]); setCurrentInterview(i); setView('INTERVIEW_DETAIL'); }} onLogoClick={() => setView('DASHBOARD')} /> : null;
       case 'INTERVIEW_DETAIL': return currentInterview && currentProject ? (
-        <Layout title={currentInterview.title} onBack={() => setView('PROJECT_DETAIL')} 
+        <Layout title={currentInterview.title} onBack={() => setView('PROJECT_DETAIL')} onLogoClick={() => setView('DASHBOARD')}
           actions={<button onClick={() => setShowDeleteConfirm(true)} className="p-2 text-slate/20 hover:text-red-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>}
         >
           <div className="max-w-4xl mx-auto space-y-8 pb-40 animate-fade-in">
@@ -1107,34 +1195,75 @@ const App: React.FC = () => {
           </div>
         </Layout>
       ) : null;
-      case 'CODING': return currentProject && currentInterview ? <CodingView project={currentProject} interview={currentInterview} codes={codes} onFinish={() => setView('INTERVIEW_DETAIL')} onCodesUpdated={(c) => setCodes(c)} onOpenDetail={(code) => { setSelectedCodeForDetail(code); setView('CODE_DETAIL'); }} /> : null;
+      case 'CODING': return currentProject && currentInterview ? (
+        <Layout title={currentInterview.title} onBack={() => setView('INTERVIEW_DETAIL')} onLogoClick={() => setView('DASHBOARD')}>
+          <CodingView project={currentProject} interview={currentInterview} codes={codes} onFinish={() => setView('INTERVIEW_DETAIL')} onCodesUpdated={(c) => setCodes(c)} onOpenDetail={(code) => { setSelectedCodeForDetail(code); setView('CODE_DETAIL'); }} />
+        </Layout>
+      ) : null;
       case 'CODE_DETAIL': return currentProject && selectedCodeForDetail ? (
-        <CodeDetailView 
-          project={currentProject}
-          code={selectedCodeForDetail}
-          allCodes={codes}
-          interviews={interviews}
-          onBack={() => setView('CODING')}
-          onNavigateToSource={(interviewId, sentenceIndex) => {
-            const interview = interviews.find(i => i.id === interviewId);
-            if (interview) {
-              setCurrentInterview(interview);
-              setView('CODING');
-            }
-          }}
-        />
+        <Layout title={`Code: ${selectedCodeForDetail.label}`} onBack={() => setView('CODING')} onLogoClick={() => setView('DASHBOARD')}>
+          <CodeDetailView 
+            project={currentProject}
+            code={selectedCodeForDetail}
+            allCodes={codes}
+            interviews={interviews}
+            onBack={() => setView('CODING')}
+            onNavigateToSource={(interviewId, sentenceIndex) => {
+              const interview = interviews.find(i => i.id === interviewId);
+              if (interview) {
+                setCurrentInterview(interview);
+                setView('CODING');
+              }
+            }}
+          />
+        </Layout>
       ) : null;
       case 'EXPORT': return currentProject ? (
-        <Layout title="Export Center" onBack={() => setView('PROJECT_DETAIL')}>
-          <div className="max-w-5xl mx-auto py-10 animate-fade-in"><p className="text-slate/60 mb-10">Generate thematic analysis and academic reports based on your verbatim coding.</p>
+        <Layout title="Export Center" onBack={() => setView('PROJECT_DETAIL')} onLogoClick={() => setView('DASHBOARD')}>
+          <div className="max-w-5xl mx-auto py-10 animate-fade-in">
+            <p className="text-slate/60 mb-10">Generate thematic analysis and academic reports based on your verbatim coding.</p>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="bg-white p-8 rounded-3xl shadow-lg h-fit space-y-4">
-                <button onClick={() => { showToast.success('Exporting...'); }} className="w-full h-14 bg-blue-600 text-white rounded-xl font-bold">Download Word (.DOC)</button>
-                <button onClick={() => { window.print(); }} className="w-full h-14 bg-orange-600 text-white rounded-xl font-bold">Print/PDF Report</button>
+                <button 
+                  onClick={handleGenerateReport} 
+                  disabled={isGeneratingReport}
+                  className="w-full h-14 bg-terracotta text-white rounded-xl font-bold shadow-lg hover:bg-terracotta/90 disabled:opacity-50 transition-all"
+                >
+                  {isGeneratingReport ? 'Analyzing...' : 'Generate Synthesis'}
+                </button>
+                <div className="h-px bg-slate/5 my-2" />
+                <button 
+                  onClick={downloadDoc} 
+                  disabled={!reportText}
+                  className="w-full h-14 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:opacity-50 transition-all"
+                >
+                  Download Word (.DOC)
+                </button>
+                <button 
+                  onClick={() => { window.print(); }} 
+                  className="w-full h-14 bg-orange-600 text-white rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all"
+                >
+                  Print/PDF Report
+                </button>
               </div>
-              <div className="lg:col-span-2 bg-white p-10 rounded-3xl shadow-lg min-h-[400px]">
+              <div className="lg:col-span-2 bg-white p-10 rounded-3xl shadow-lg min-h-[400px] relative">
                 <h3 className="text-2xl font-bold text-slate mb-4">Academic Synthesis</h3>
-                <p className="text-charcoal/40 italic">Synthesis of verbatim segments will appear here after analysis generation.</p>
+                {reportText ? (
+                  <div className="prose prose-slate max-w-none">
+                    <div className="whitespace-pre-wrap font-serif text-lg leading-relaxed text-charcoal/80">
+                      {reportText}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+                    <div className="w-16 h-16 bg-slate/5 rounded-full flex items-center justify-center text-slate/20">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-charcoal/40 italic">Synthesis of verbatim segments will appear here after analysis generation.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
